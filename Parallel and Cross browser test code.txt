@@ -1,0 +1,330 @@
+LaunchQuit----
+package rackonnect;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Parameters;
+
+public class LaunchQuit {
+WebDriver driver;
+@BeforeMethod
+@Parameters("browsers")
+
+public void launch(String nameofbrowser)
+
+{  
+	if(nameofbrowser.equals("chrome"))
+	{ 
+		driver = new ChromeDriver();
+	}
+		
+	if(nameofbrowser.equals("firefox"))
+	{ 
+		driver = new FirefoxDriver();
+	}
+	
+	if(nameofbrowser.equals("edge"))
+	{ 
+		driver = new EdgeDriver();
+	}
+	
+	// Initialize ChromeDriver
+		
+		driver.manage().window().maximize();
+		driver.get("https://dev-tp.rackonnect.com");
+}
+@AfterMethod
+public void Quit()
+
+{
+	// Close the browser after tests
+	if (driver != null) {
+		driver.quit();
+	}
+}
+}
+
+----------------------------------------------------------
+Import players Module code
+----------------------------------------------------------
+package rackonnect;
+
+import java.time.Duration;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+public class RackonnectPortalTest extends LaunchQuit {
+
+	WebDriver driver;
+
+	@DataProvider(name = "loginCredentials")
+	public Object[][] getData() {
+		// Providing different sets of username and password combinations
+		return new Object[][] { { "aj@gmail1.com", "Test@123", "failure" },
+				{ "newreg@gmail1.com", "Test@12345", "failure" }, { "newreg@gmail.com", "invalid", "failure" },
+				{ "invalid@gmail.com", "invalid", "failure" }, { "rack@tech.com", "Test@12345", "Success" } };
+	}
+
+	@Test(dataProvider = "loginCredentials", priority = 1)
+	public void loginTest(String username, String password, String expectedOutcome) {
+		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+
+		// Click the login link
+		WebElement loginLink = wait.until(ExpectedConditions.elementToBeClickable(By.id("login-open")));
+		loginLink.click();
+
+		// Locate the username and password fields
+		WebElement usernameField = wait.until(ExpectedConditions.elementToBeClickable(By.id("email-login")));
+		WebElement passwordField = wait.until(ExpectedConditions.elementToBeClickable(By.id("passwordLogin")));
+
+		// Enter the credentials
+		usernameField.clear();
+		usernameField.sendKeys(username);
+		passwordField.clear();
+		passwordField.sendKeys(password);
+
+		// Click the login button
+		WebElement submitButton = driver.findElement(By.className("submitButton"));
+		wait.until(ExpectedConditions.elementToBeClickable(submitButton)).click();
+
+		// Check login status
+		WebElement loginConfirmation = wait
+				.until(ExpectedConditions.presenceOfElementLocated(By.className("col-md-1")));
+		Assert.assertTrue(loginConfirmation.isDisplayed(), "Login failed for user: " + username);
+
+		// Click the logout button
+		WebElement logoutButton = driver.findElement(By.className("sidebar-logout-btn"));
+
+		// Scroll to the element or make sure it is visible
+		((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", logoutButton);
+
+		// Use JavaScript to click the button
+		((JavascriptExecutor) driver).executeScript("arguments[0].click();", logoutButton);
+
+		// Wait for the alert modal to appear and handle it
+		WebElement okButton = wait.until(ExpectedConditions
+				.visibilityOfElementLocated(By.xpath("//a[@class='btn btn-default form-control btn_con']")));
+
+		// Use JavaScript Executor to click if intercepted
+		((JavascriptExecutor) driver).executeScript("arguments[0].click();", okButton);
+	}
+
+	@Test(priority=2)
+	public void importPlayers() throws InterruptedException {
+	WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(50));
+	JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+	wait.pollingEvery(Duration.ofMillis(500));
+
+	// Wait for the Draft Tournament image and click it
+	WebElement draftTournament = wait.until(ExpectedConditions.elementToBeClickable(By.id("tournament_count")));
+
+	((JavascriptExecutor) driver).executeScript("arguments[0].click();", draftTournament);
+	jsExecutor.executeScript("arguments[0].scrollIntoView(true);", draftTournament);
+	jsExecutor.executeScript("arguments[0].click();", draftTournament);
+	
+	Thread.sleep(2000);
+	// Handle Publish/Update Tournament button
+
+	/*
+	 * WebElement tournamentButton =
+	 * wait.until(ExpectedConditions.elementToBeClickable(By.
+	 * className("col-md-6 px-0"))); String buttonText = tournamentButton.getText();
+	 * if (buttonText.equals("Publish Tournament") ||
+	 * buttonText.equals("Update Tournament")) { tournamentButton.click(); }
+	 * 
+	 * //_____________ int retries = 3; while (retries > 0) { try { WebElement
+	 * element = driver.findElement(By.className("col-md-6 px-0")); element.click();
+	 * break; // Exit loop once interaction is successful } catch
+	 * (StaleElementReferenceException e) { retries--; } }
+	 */
+
+	// Handle Publish/Update Tournament button with retry mechanism
+	int retries = 3;
+
+	while (retries > 0) {
+		try {
+			// Wait until the button is clickable
+			WebElement tournamentButton = wait.until(ExpectedConditions.elementToBeClickable(By.tagName("a")));
+
+			driver.navigate().refresh();
+			driver.get(driver.getCurrentUrl());				
+			// Get the button text
+			String buttonText = tournamentButton.getText();
+
+			// Check if it's the "Publish Tournament" or "Update Tournament" button
+			if (buttonText.equals("Update Tournament") || buttonText.equals("Publish Tournament")) {
+				tournamentButton.click(); // Click the button
+			}
+
+			break; // If successful, exit the loop
+		} catch (StaleElementReferenceException e) {
+			// If element becomes stale, reduce retry count and retry
+			retries--;
+			if (retries == 0) {
+				System.out.println("Failed to click the button after multiple retries due to stale element.");
+			}
+		} catch (Exception e) {
+			// Catch other potential exceptions
+			e.printStackTrace();
+			break;
+		}
+	}
+
+	// Wait for Save & Close button and click
+	WebElement saveCloseButton = wait.until(
+			ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(@class, 'infosaveclose')]")));
+	saveCloseButton.click();
+
+	// Handle the alert and click continue
+	WebElement alertContinueButton = wait
+			.until(ExpectedConditions.elementToBeClickable(By.cssSelector("button.rck-ce-dismissModal")));
+	alertContinueButton.click();
+
+	// Navigate to Players tab
+	WebElement playersTab = wait.until(ExpectedConditions.elementToBeClickable(By.linkText("Players")));
+	playersTab.click();
+
+	// Click Import Players icon
+	WebElement importPlayersIcon = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector(
+			"img[src='https://dev-tp.rackonnect.com/public/frontend/assets/images/SVG/imprtplyr.svg']")));
+	importPlayersIcon.click();
+
+	// Select dropdown for event
+	WebElement dropdownElement = wait.until(
+			ExpectedConditions.elementToBeClickable(By.cssSelector(".rck-pl-impt-tournamentEventId-Selector")));
+	Actions actions = new Actions(driver);
+	actions.moveToElement(dropdownElement).click().perform();
+
+	// Select "BS U-19 (0) K.O" from dropdown
+	Select select = new Select(dropdownElement);
+	select.selectByVisibleText("BS U-19 (0) K.O");
+
+	// Choose and upload file
+	WebElement chooseFileButton = wait.until(ExpectedConditions
+			.elementToBeClickable(By.xpath("//button[contains(@class, 'btn_con rck-createTournament-Btn')]")));
+	chooseFileButton.click();
+
+	WebElement fileInput = driver.findElement(By.xpath("//input[@type='file']"));
+	fileInput.sendKeys("D:\\All Backup Download\\All csv's of Rackonnect\\8_player-import(single).csv");
+
+	// Click Import button
+	WebElement importButton = wait
+			.until(ExpectedConditions.elementToBeClickable(By.cssSelector("button.rck-pl-importPlayer-Btn")));
+	importButton.click();
+}	
+}
+------------------------------------------------------------
+testng.xml
+------------------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="RackonnedtTestcases" parallel="tests">
+
+  <test thread-count="1" name="Test on Chrome">
+  <parameter name="browsers" value="chrome"></parameter>
+    <classes>
+     <class name="rackonnect.LaunchQuit"/>
+      <class name="rackonnect.RackonnectPortalTest"/>  <!-- Use the fully qualified class name -->
+      
+    </classes>
+  </test> <!-- Test -->
+  <test thread-count="1" name="Test on Firefox">
+  <parameter name="browsers" value="firefox"></parameter>
+    <classes>
+      <class name="rackonnect.LaunchQuit"/>
+      <class name="rackonnect.RackonnectPortalTest"/>  <!-- Use the fully qualified class name -->
+     
+    </classes>
+  </test> <!-- Test -->
+  
+  
+</suite> <!-- Suite -->
+---------------------------------------------------------------------
+test/pom.xml
+---------------------------------------------------------------------
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>test</groupId>
+	<artifactId>test</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<dependencies>
+		<!--
+		https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java -->
+		<!-- https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java -->
+<dependency>
+    <groupId>org.seleniumhq.selenium</groupId>
+    <artifactId>selenium-java</artifactId>
+    <version>4.31.0</version>
+</dependency>
+		<!-- https://mvnrepository.com/artifact/org.testng/testng -->
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>7.10.2</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!--
+		https://mvnrepository.com/artifact/io.github.bonigarcia/webdrivermanager -->
+		<dependency>
+			<groupId>io.github.bonigarcia</groupId>
+			<artifactId>webdrivermanager</artifactId>
+			<version>5.9.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>2.0.16</version>
+		</dependency>
+
+		<!--
+		https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j2-impl -->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j2-impl</artifactId>
+			<version>2.24.2</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!--
+		https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>2.24.2</version>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<!--
+		https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-surefire-plugin -->
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>3.5.0</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+</project>
